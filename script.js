@@ -2,11 +2,9 @@ async function fetchWeather() {
   let searchInput = document.getElementById("search").value;
   const weatherDataSection = document.getElementById("weather-data");
   weatherDataSection.style.display = "block";
-  const weatherApiKey = "504082a8fc4d788774a4dd619e65d05";
-  const soilApiKey = "bb0664ed43c153aa072c760594d775a7";
-  const polyId = "5aaa8052cbbbb5000b73ff66";
+  const apiKey = "f504082a8fc4d788774a4dd619e65d05";
 
-  if (searchInput === "") {
+  if (searchInput == "") {
     weatherDataSection.innerHTML = `
       <div>
         <h2>Empty Input!</h2>
@@ -17,76 +15,48 @@ async function fetchWeather() {
   }
 
   async function getLonAndLat() {
-    const countryCode = "IN";
-    const geocodeURL = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(searchInput)},${countryCode}&limit=1&appid=${weatherApiKey}`;
-    try {
-      const response = await fetch(geocodeURL);
-      if (!response.ok) throw new Error("Failed to fetch geolocation");
-      const data = await response.json();
-      if (data.length === 0) {
-        weatherDataSection.innerHTML = `
-          <div>
-            <h2>Invalid Input: "${searchInput}"</h2>
-            <p>Please try again with a valid <u>city name</u>.</p>
-          </div>
-        `;
-        return null;
-      }
+    const countryCode = "IN"; // Country code for India
+    const geocodeURL = `https://api.openweathermap.org/geo/1.0/direct?q=${searchInput.replace(" ", "%20")},${countryCode}&limit=1&appid=${apiKey}`;
+    const response = await fetch(geocodeURL);
+    if (!response.ok) {
+      console.log("Bad response! ", response.status);
+      return;
+    }
+    const data = await response.json();
+    if (data.length == 0) {
+      console.log("Something went wrong here.");
+      weatherDataSection.innerHTML = `
+        <div>
+          <h2>Invalid Input: "${searchInput}"</h2>
+          <p>Please try again with a valid <u>city name</u>.</p>
+        </div>
+      `;
+      return;
+    } else {
       return data[0];
-    } catch (error) {
-      console.error("Error fetching location data:", error);
-      return null;
     }
   }
 
   async function getWeatherData(lon, lat) {
-    const weatherURL = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherApiKey}&units=metric`;
-    try {
-      const response = await fetch(weatherURL);
-      if (!response.ok) throw new Error("Failed to fetch weather data");
-      const data = await response.json();
-      console.log("Weather Data:", data);
-
-      const soilData = await getSoilData();
-
-      weatherDataSection.style.display = "flex";
-      weatherDataSection.innerHTML = `
-        <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}.png" alt="${data.weather[0].description}" width="100" />
-        <div>
-          <h2>${data.name}</h2>
-          <p><strong>Temperature:</strong> ${data.main.temp}°C</p>
-          <p><strong>Humidity:</strong> ${data.main.humidity}%</p>
-          <p><strong>Description:</strong> ${data.weather[0].description}</p>
-          <p><strong>Soil Moisture:</strong> ${soilData.moisture}</p>
-          <p><strong>Soil Temperature:</strong> ${soilData.temperature}°C</p>
-        </div>
-      `;
-    } catch (error) {
-      console.error("Error fetching weather data:", error);
+    const weatherURL = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+    const response = await fetch(weatherURL);
+    if (!response.ok) {
+      console.log("Bad response! ", response.status);
+      return;
     }
-  }
-  
-  async function getSoilData() {
-    const soilApiURL = `http://api.agromonitoring.com/agro/1.0/soil?polyid=${polyId}&appid=${soilApiKey}`;
-    try {
-      const response = await fetch(soilApiURL);
-      if (!response.ok) throw new Error("Failed to fetch soil data");
-      const data = await response.json();
-      console.log("Soil Data:", data);
-
-      return {
-        moisture: data.moisture || "Unknown",
-        temperature: data.t0 || "Unknown"
-      };
-    } catch (error) {
-      console.error("Error fetching soil data:", error);
-      return { moisture: "Unknown", temperature: "Unknown" };
-    }
+    const data = await response.json();
+    weatherDataSection.style.display = "flex";
+    weatherDataSection.innerHTML = `
+      <img src="https://openweathermap.org/img/wn/${data.weather[0].icon}.png" alt="${data.weather[0].description}" width="100" />
+      <div>
+        <h2>${data.name}</h2>
+        <p><strong>Temperature:</strong> ${Math.round(data.main.temp - 273.15)}°C</p>
+        <p><strong>Description:</strong> ${data.weather[0].description}</p>
+      </div>
+    `;
   }
 
   document.getElementById("search").value = "";
   const geocodeData = await getLonAndLat();
-  if (geocodeData) {
-    getWeatherData(geocodeData.lon, geocodeData.lat);
-  }
+  getWeatherData(geocodeData.lon, geocodeData.lat);
 }
